@@ -17,7 +17,7 @@ function App() {
             </div>
             <h1 className="text-4xl font-bold text-red-900 mb-2">AI Nails Generator</h1>
             <p className="text-red-700 mb-2">Visualiza las uñas que te imagines</p>
-            <p className="text-red-400 text-sm italic">For Isabela ♥</p>
+            <p className="text-red-400 text-sm italic">To Isabela ♥</p>
           </div>
 
           {/* Navigation */}
