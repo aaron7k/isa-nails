@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Download, Loader2, X, Maximize2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Download, Loader2, X, Maximize2, ChevronLeft, ChevronRight, Trash2 } from 'lucide-react';
+import ConfirmationModal from './ConfirmationModal';
 
 interface NailDesign {
   ID: string;
@@ -12,9 +13,10 @@ interface ModalProps {
   design: NailDesign;
   onClose: () => void;
   onDownload: (id: string) => Promise<void>;
+  onDelete: (id: string) => void;
 }
 
-const ImageModal: React.FC<ModalProps> = ({ design, onClose, onDownload }) => {
+const ImageModal: React.FC<ModalProps> = ({ design, onClose, onDownload, onDelete }) => {
   const [downloading, setDownloading] = useState(false);
   const [activeTab, setActiveTab] = useState<'image' | 'details'>('image');
 
@@ -33,7 +35,6 @@ const ImageModal: React.FC<ModalProps> = ({ design, onClose, onDownload }) => {
         className="relative bg-white rounded-xl max-w-5xl w-full max-h-[90vh] overflow-hidden"
         onClick={e => e.stopPropagation()}
       >
-        {/* Mobile Navigation */}
         <div className="md:hidden flex items-center justify-center border-b border-red-100 bg-white">
           <button
             onClick={() => setActiveTab('image')}
@@ -57,8 +58,14 @@ const ImageModal: React.FC<ModalProps> = ({ design, onClose, onDownload }) => {
           </button>
         </div>
 
-        {/* Desktop Actions */}
         <div className="hidden md:flex absolute top-4 right-4 z-10 gap-2">
+          <button
+            onClick={() => onDelete(design.ID)}
+            className="p-2 bg-white/90 hover:bg-white rounded-full text-red-600 transition-colors shadow-lg"
+            title="Eliminar imagen"
+          >
+            <Trash2 className="w-6 h-6" />
+          </button>
           <button
             onClick={handleDownloadClick}
             disabled={downloading}
@@ -118,7 +125,6 @@ const ImageModal: React.FC<ModalProps> = ({ design, onClose, onDownload }) => {
           </div>
         </div>
 
-        {/* Mobile Actions and Navigation */}
         <div className="md:hidden fixed bottom-4 left-0 right-0 flex justify-center items-center gap-3">
           <button
             onClick={() => setActiveTab('image')}
@@ -131,6 +137,14 @@ const ImageModal: React.FC<ModalProps> = ({ design, onClose, onDownload }) => {
             <ChevronLeft className="w-6 h-6" />
           </button>
           
+          <button
+            onClick={() => onDelete(design.ID)}
+            className="p-2 bg-white rounded-full text-red-600 shadow-lg"
+            title="Eliminar imagen"
+          >
+            <Trash2 className="w-6 h-6" />
+          </button>
+
           <button
             onClick={handleDownloadClick}
             disabled={downloading}
@@ -173,6 +187,14 @@ function Gallery() {
   const [error, setError] = useState('');
   const [selectedDesign, setSelectedDesign] = useState<NailDesign | null>(null);
   const [downloading, setDownloading] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState<string | null>(null);
+  const [deleteConfirmation, setDeleteConfirmation] = useState<{
+    isOpen: boolean;
+    designId: string | null;
+  }>({
+    isOpen: false,
+    designId: null
+  });
 
   useEffect(() => {
     fetchDesigns();
@@ -206,6 +228,36 @@ function Gallery() {
     }
   };
 
+  const handleDelete = async (id: string) => {
+    try {
+      setDeleting(id);
+      
+      const response = await fetch('https://api.neoglow.net/webhook/isabela/delete-image', {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': 'O2WJWuNAH4VamJIy'
+        },
+        body: JSON.stringify({ id })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to delete image');
+      }
+
+      setDesigns(designs.filter(design => design.ID !== id));
+      
+      if (selectedDesign?.ID === id) {
+        setSelectedDesign(null);
+      }
+    } catch (err) {
+      console.error('Delete error:', err);
+      setError('Error al eliminar la imagen. Por favor intenta de nuevo.');
+    } finally {
+      setDeleting(null);
+    }
+  };
+
   const handleDownload = async (id: string) => {
     try {
       setDownloading(id);
@@ -225,11 +277,9 @@ function Gallery() {
 
       const data = await response.json();
       
-      // Asegurarse de que el base64 no incluya el prefijo "data:image/..."
       const base64Data = data.base64.replace(/^data:image\/\w+;base64,/, '');
       
       try {
-        // Convertir base64 a blob
         const byteString = atob(base64Data);
         const mimeString = 'image/png';
         const ab = new ArrayBuffer(byteString.length);
@@ -241,7 +291,6 @@ function Gallery() {
         
         const blob = new Blob([ab], { type: mimeString });
         
-        // Crear y activar el enlace de descarga
         const downloadUrl = window.URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = downloadUrl;
@@ -249,14 +298,12 @@ function Gallery() {
         document.body.appendChild(link);
         link.click();
         
-        // Limpieza
         setTimeout(() => {
           window.URL.revokeObjectURL(downloadUrl);
           document.body.removeChild(link);
         }, 100);
       } catch (error) {
         console.error('Error processing base64:', error);
-        // Si falla la conversión, intentar descargar directamente el base64
         const link = document.createElement('a');
         link.href = `data:image/png;base64,${base64Data}`;
         link.download = `nail-design-${id}.png`;
@@ -270,6 +317,13 @@ function Gallery() {
     } finally {
       setDownloading(null);
     }
+  };
+
+  const openDeleteConfirmation = (id: string) => {
+    setDeleteConfirmation({
+      isOpen: true,
+      designId: id
+    });
   };
 
   if (loading) {
@@ -342,6 +396,18 @@ function Gallery() {
                   <Maximize2 className="w-5 h-5" />
                 </button>
                 <button
+                  onClick={() => openDeleteConfirmation(design.ID)}
+                  disabled={deleting === design.ID}
+                  className="bg-white hover:bg-red-50 text-red-600 p-3 rounded-full shadow-lg transition-colors disabled:opacity-50"
+                  title="Eliminar"
+                >
+                  {deleting === design.ID ? (
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                  ) : (
+                    <Trash2 className="w-5 h-5" />
+                  )}
+                </button>
+                <button
                   onClick={() => handleDownload(design.ID)}
                   disabled={downloading === design.ID}
                   className="bg-white hover:bg-red-50 text-red-600 p-3 rounded-full shadow-lg transition-colors disabled:opacity-50"
@@ -374,8 +440,22 @@ function Gallery() {
           design={selectedDesign} 
           onClose={() => setSelectedDesign(null)}
           onDownload={handleDownload}
+          onDelete={() => openDeleteConfirmation(selectedDesign.ID)}
         />
       )}
+
+      <ConfirmationModal
+        isOpen={deleteConfirmation.isOpen}
+        onClose={() => setDeleteConfirmation({ isOpen: false, designId: null })}
+        onConfirm={() => {
+          if (deleteConfirmation.designId) {
+            handleDelete(deleteConfirmation.designId);
+          }
+          setDeleteConfirmation({ isOpen: false, designId: null });
+        }}
+        title="Eliminar imagen"
+        message="¿Estás seguro de que quieres eliminar esta imagen? Esta acción no se puede deshacer."
+      />
     </>
   );
 }

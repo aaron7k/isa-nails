@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Download, Loader2, Wand2 } from 'lucide-react';
+import { Download, Loader2, Wand2, Trash2 } from 'lucide-react';
+import ConfirmationModal from './ConfirmationModal';
 
 interface ApiResponse {
   url: string;
@@ -7,16 +8,14 @@ interface ApiResponse {
   id: string;
 }
 
-interface ApiError {
-  message: string;
-}
-
 function Generator() {
   const [prompt, setPrompt] = useState('');
   const [loading, setLoading] = useState(false);
   const [downloading, setDownloading] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [generatedImage, setGeneratedImage] = useState<ApiResponse | null>(null);
   const [error, setError] = useState('');
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
 
   const generateImage = async () => {
     if (!prompt.trim()) {
@@ -40,7 +39,6 @@ function Generator() {
       const data = await response.json();
 
       if (!response.ok) {
-        // Si es un error 400, mostramos el mensaje específico de la API
         if (response.status === 400) {
           throw new Error(data.message);
         }
@@ -54,6 +52,34 @@ function Generator() {
       setGeneratedImage(null);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!generatedImage?.id) return;
+
+    try {
+      setDeleting(true);
+      
+      const response = await fetch('https://api.neoglow.net/webhook/isabela/delete-image', {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': 'O2WJWuNAH4VamJIy'
+        },
+        body: JSON.stringify({ id: generatedImage.id })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to delete image');
+      }
+
+      setGeneratedImage(null);
+    } catch (err) {
+      console.error('Delete error:', err);
+      setError('Error al eliminar la imagen. Por favor intenta de nuevo.');
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -78,11 +104,9 @@ function Generator() {
 
       const data = await response.json();
       
-      // Asegurarse de que el base64 no incluya el prefijo "data:image/..."
       const base64Data = data.base64.replace(/^data:image\/\w+;base64,/, '');
       
       try {
-        // Convertir base64 a blob
         const byteString = atob(base64Data);
         const mimeString = 'image/png';
         const ab = new ArrayBuffer(byteString.length);
@@ -94,7 +118,6 @@ function Generator() {
         
         const blob = new Blob([ab], { type: mimeString });
         
-        // Crear y activar el enlace de descarga
         const downloadUrl = window.URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = downloadUrl;
@@ -102,14 +125,12 @@ function Generator() {
         document.body.appendChild(link);
         link.click();
         
-        // Limpieza
         setTimeout(() => {
           window.URL.revokeObjectURL(downloadUrl);
           document.body.removeChild(link);
         }, 100);
       } catch (error) {
         console.error('Error processing base64:', error);
-        // Si falla la conversión, intentar descargar directamente el base64
         const link = document.createElement('a');
         link.href = `data:image/png;base64,${base64Data}`;
         link.download = `nail-design-${generatedImage.id}.png`;
@@ -127,7 +148,6 @@ function Generator() {
 
   return (
     <>
-      {/* Input Section */}
       <div className="bg-white rounded-xl shadow-lg p-6 mb-8">
         <div className="mb-6">
           <textarea
@@ -165,7 +185,6 @@ function Generator() {
         </div>
       </div>
 
-      {/* Result Section */}
       {generatedImage && (
         <div className="bg-white rounded-xl shadow-lg p-6">
           <div className="mb-4">
@@ -178,21 +197,43 @@ function Generator() {
               alt="AI Generated"
               className="w-full h-auto"
             />
-            <button
-              onClick={handleDownload}
-              disabled={downloading}
-              className="absolute bottom-4 right-4 bg-white/90 hover:bg-white text-red-600 p-3 rounded-full shadow-lg transition-colors disabled:opacity-50"
-              title="Descargar imagen"
-            >
-              {downloading ? (
-                <Loader2 className="w-5 h-5 animate-spin" />
-              ) : (
-                <Download className="w-5 h-5" />
-              )}
-            </button>
+            <div className="absolute bottom-4 right-4 flex gap-2">
+              <button
+                onClick={() => setIsDeleteModalOpen(true)}
+                disabled={deleting}
+                className="bg-white/90 hover:bg-white text-red-600 p-3 rounded-full shadow-lg transition-colors disabled:opacity-50"
+                title="Eliminar imagen"
+              >
+                {deleting ? (
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                ) : (
+                  <Trash2 className="w-5 h-5" />
+                )}
+              </button>
+              <button
+                onClick={handleDownload}
+                disabled={downloading}
+                className="bg-white/90 hover:bg-white text-red-600 p-3 rounded-full shadow-lg transition-colors disabled:opacity-50"
+                title="Descargar imagen"
+              >
+                {downloading ? (
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                ) : (
+                  <Download className="w-5 h-5" />
+                )}
+              </button>
+            </div>
           </div>
         </div>
       )}
+
+      <ConfirmationModal
+        isOpen={isDeleteModalOpen}
+        onClose={() => setIsDeleteModalOpen(false)}
+        onConfirm={handleDelete}
+        title="Eliminar imagen"
+        message="¿Estás seguro de que quieres eliminar esta imagen? Esta acción no se puede deshacer."
+      />
     </>
   );
 }
