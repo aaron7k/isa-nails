@@ -195,14 +195,16 @@ function Gallery() {
     isOpen: false,
     designId: null
   });
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
 
   useEffect(() => {
     fetchDesigns();
-  }, []);
+  }, [sortOrder]);
 
   const fetchDesigns = async () => {
     try {
-      const response = await fetch('https://api.neoglow.net/webhook/isabela/fetch-nails', {
+      setLoading(true);
+      const response = await fetch(`https://api.neoglow.net/webhook/isabela/fetch-nails?sort=${sortOrder}`, {
         headers: {
           'apikey': 'O2WJWuNAH4VamJIy'
         }
@@ -371,6 +373,20 @@ function Gallery() {
 
   return (
     <>
+      <div className="flex justify-end mb-4">
+        <label htmlFor="sortOrder" className="text-red-700 mr-2">
+          Ordenar por:
+        </label>
+        <select
+          id="sortOrder"
+          value={sortOrder}
+          onChange={(e) => setSortOrder(e.target.value as 'asc' | 'desc')}
+          className="px-4 py-2 rounded-lg border border-red-200 focus:border-red-500 focus:ring-2 focus:ring-red-200 transition-colors"
+        >
+          <option value="desc">Más Reciente</option>
+          <option value="asc">Más Antiguo</option>
+        </select>
+      </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {designs.map((design) => (
           <div key={design.ID + design.creadoEn} className="bg-white rounded-xl shadow-lg overflow-hidden group">

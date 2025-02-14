@@ -10,6 +10,8 @@ interface ApiResponse {
 
 function Generator() {
   const [prompt, setPrompt] = useState('');
+  const [improvePrompt, setImprovePrompt] = useState(false);
+  const [generationModel, setGenerationModel] = useState('flux-schnell');
   const [loading, setLoading] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -33,7 +35,7 @@ function Generator() {
           'Content-Type': 'application/json',
           'apikey': 'O2WJWuNAH4VamJIy'
         },
-        body: JSON.stringify({ prompt })
+        body: JSON.stringify({ prompt, improvePrompt, model: generationModel })
       });
 
       const data = await response.json();
@@ -156,6 +158,35 @@ function Generator() {
             placeholder="Describe cómo quieres tus uñas..."
             className="w-full h-32 px-4 py-3 rounded-lg border border-red-200 focus:border-red-500 focus:ring-2 focus:ring-red-200 resize-none transition-colors"
           />
+        </div>
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center">
+            <input
+              type="checkbox"
+              id="improvePrompt"
+              checked={improvePrompt}
+              onChange={(e) => setImprovePrompt(e.target.checked)}
+              className="mr-2 h-5 w-5 text-red-600 focus:ring-red-500"
+            />
+            <label htmlFor="improvePrompt" className="text-red-700 mr-4">
+              Mejorar Prompt
+            </label>
+          </div>
+          <div className="flex items-center">
+            <label htmlFor="generationModel" className="text-red-700 mr-2">
+              Modelo:
+            </label>
+            <select
+              id="generationModel"
+              value={generationModel}
+              onChange={(e) => setGenerationModel(e.target.value)}
+              className="px-4 py-3 rounded-lg border border-red-200 focus:border-red-500 focus:ring-2 focus:ring-red-200 transition-colors"
+            >
+              <option value="flux-schnell">flux-schnell ($)</option>
+              <option value="flux-dev">flux-dev ($$)</option>
+              <option value="flux-1.1-pro">flux-1.1-pro ($$$)</option>
+            </select>
+          </div>
         </div>
         <div className="flex flex-col gap-4">
           <div className="flex justify-end">
